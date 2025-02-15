@@ -16,7 +16,7 @@ class RelatoInput(BaseModel):
     )
 
 @router.post(
-    "/processar_relato",
+    "/V1/processar_relato",
     summary="Processa um relato de conversa e retorna um objeto JSON formatado.",
     description="Recebe um relato de conversa em texto, extrai informações relevantes e retorna um objeto JSON para ser importado em um banco de dados.",
     tags=[NomeGrupo.llm],
@@ -35,7 +35,7 @@ async def processar_relato_endpoint(relato_input: RelatoInput):
     
 
 @router.post(
-    "/gerar_estrategia",
+    "/V1/gerar_estrategia",
     summary="Gera uma estratégia de conversão a partir dos dados do relato.",
     description="Recebe um objeto JSON com os dados do relato e gera uma estratégia de conversão personalizada para o cliente.",
     tags=[NomeGrupo.llm],
