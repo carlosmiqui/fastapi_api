@@ -26,6 +26,8 @@ class RelatoConversa(BaseModel):
 class EstrategiaConversao(BaseModel):
     estrategia: str
     
-
+class TranscricaoAudio(BaseModel):
+    texto_transcrito: str
+    
     
     

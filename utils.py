@@ -1,5 +1,5 @@
 import logging
-from fastapi import HTTPException
+from fastapi import HTTPException, UploadFile
 from groq import Groq
 import os
 from dotenv import load_dotenv
@@ -7,11 +7,19 @@ from datetime import datetime, timedelta
 from models import RelatoConversa, EstrategiaConversao
 import re
 import json
+#import aiohttp  # Importar aiohttp para requisições assíncronas
 
 load_dotenv()
 
 API_TOKEN = os.getenv("API_TOKEN")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
+from openai import OpenAI
+
+client = OpenAI(
+    api_key=OPENAI_API_KEY  # Substitua pela sua chave da API
+)
 
 def obter_logger_e_configuracao():
     """
@@ -59,6 +67,109 @@ def executar_prompt_groq(prompt: str) -> str:
         return chat_completion.choices[0].message.content
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao executar prompt na Groq: {e}")
+
+
+# async def transcrever_audio(audio_file: UploadFile) -> str:
+#     """
+#     Transcreve um arquivo de áudio para texto utilizando a API da OpenAI.
+
+#     Args:
+#         audio_file (UploadFile): O arquivo de áudio a ser transcrito.
+
+#     Returns:
+#         str: O texto transcrito do áudio.
+#     """
+#     logger = logging.getLogger("fastapi")
+#     if not OPENAI_API_KEY:
+#         raise HTTPException(
+#             status_code=500, detail="A chave da API da OpenAI não está configurada."
+#         )
+
+#     url = "https://api.openai.com/v1/audio/transcriptions"
+#     headers = {
+#         "Authorization": f"Bearer {OPENAI_API_KEY}",
+#     }
+#     data = aiohttp.FormData()
+#     data.add_field("file", audio_file.file, filename=audio_file.filename, content_type=audio_file.content_type)
+#     data.add_field("model", "whisper-1")
+
+#     try:
+#         async with aiohttp.ClientSession() as session:
+#             async with session.post(url, headers=headers, data=data) as response:
+#                 response_data = await response.json()
+#                 logger.info(f"Resposta da OpenAI: {response_data}")
+#                 if response.status == 200:
+#                     return response_data["text"]
+#                 else:
+#                     raise HTTPException(
+#                         status_code=response.status, detail=response_data
+#                     )
+#     except Exception as e:
+#         logger.error(f"Erro ao transcrever áudio com a OpenAI: {e}")
+#         raise HTTPException(
+#             status_code=500, detail=f"Erro ao transcrever áudio com a OpenAI: {e}"
+#         )
+        
+        
+async def transcrever_audio(audio_file: UploadFile) -> str:
+    """
+    Transcreve um arquivo de áudio para texto utilizando a API da OpenAI.
+
+    Args:
+        audio_file (UploadFile): O arquivo de áudio a ser transcrito.
+
+    Returns:
+        str: O texto transcrito do áudio.
+    """
+    logger = logging.getLogger("fastapi")
+    logger.info("Iniciando a transcrição do áudio...")
+
+    if not OPENAI_API_KEY:
+        logger.error("A chave da API da OpenAI não está configurada.")
+        raise HTTPException(
+            status_code=500, detail="A chave da API da OpenAI não está configurada."
+        )
+
+    # openai.api_key = OPENAI_API_KEY  # Não é mais necessário configurar diretamente
+    logger.info("Chave da API da OpenAI configurada.")
+
+    try:
+        logger.info("Lendo o conteúdo do arquivo de áudio...")
+        # Ler o conteúdo do arquivo de áudio
+        audio_content = await audio_file.read()
+        logger.info("Conteúdo do arquivo de áudio lido com sucesso.")
+
+        logger.info("Salvando o conteúdo em um arquivo temporário...")
+        # Salvar o conteúdo em um arquivo temporário
+        with open("temp_audio.mp3", "wb") as temp_file:
+            temp_file.write(audio_content)
+        logger.info("Conteúdo do arquivo de áudio salvo em arquivo temporário.")
+
+        logger.info("Transcrevendo o áudio utilizando a API da OpenAI...")
+        # Transcrever o áudio utilizando a API da OpenAI
+        with open("temp_audio.mp3", "rb") as audio_file:
+            # transcript = openai.Audio.transcribe("whisper-1", audio_file)  # Código antigo
+            client = OpenAI(api_key=OPENAI_API_KEY)  # Inicializar o cliente OpenAI
+            transcript = client.audio.transcriptions.create(
+                model="whisper-1",
+                file=audio_file
+            )
+        logger.info(f"Transcrição da OpenAI: {transcript}")
+
+        logger.info("Removendo o arquivo temporário...")
+        # Remover o arquivo temporário
+        os.remove("temp_audio.mp3")
+        logger.info("Arquivo temporário removido.")
+
+        logger.info("Transcrição concluída com sucesso.")
+        return transcript.text  # Acessar o texto transcrito através do atributo .text
+    except Exception as e:
+        logger.error(f"Erro ao transcrever áudio com a OpenAI: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Erro ao transcrever áudio com a OpenAI: {e}"
+        )
+        
+        
 
 def processar_relato(relato: str) -> RelatoConversa:
     """

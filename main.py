@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Depends
 from utils import commom_verificacao_api_token
-from routers import llm_router
+from routers import llm_router, audio_router
 from fastapi.middleware.cors import CORSMiddleware
 
 description = """
@@ -41,4 +41,7 @@ app.add_middleware(
     allow_headers=["*"],  # Permite todos os headers
 )
 
+
+app.include_router(audio_router.router)  # Incluir o novo router
 app.include_router(llm_router.router)
+
